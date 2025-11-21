@@ -1,9 +1,29 @@
+# Virtual env
 venv/
 .env
+
+# Python cache
 __pycache__/
 *.pyc
+
+# Editor files
 .vscode/
-data/
-models/*.ckpt
-models/*.bin
-models/*.pt
+
+# Ignore training dataset but keep model
+data/*
+!data/.gitkeep
+
+# Ignore everything in models EXCEPT the trained classifier folder
+models/*
+!models/classifier/**
+!models/classifier_metrics.json
+!models/classifier_encoder.pkl
+!models/classifier_tfidf.pkl
+!models/classifier_model.pkl
+
+# Allow safetensors, json, vocab, tokenizer inside classifier
+!models/classifier/*.safetensors
+!models/classifier/*.json
+!models/classifier/*.txt
+!models/classifier/*.pkl
+!models/classifier/*.pt
