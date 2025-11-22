@@ -1,4 +1,4 @@
-# TransactAI – Hybrid Bank Text Categorizer
+# TransactAI – Hybrid Transaction Categorizer
 
 A production-focused transaction classification service that blends deterministic banking heuristics with a fine‑tuned DistilBERT sequence classifier plus a SentenceTransformer embedding fallback. The goal is to keep deployment lightweight (no large LLM APIs) while sustaining high recall on noisy SMS/e-mail banking notifications.
 
