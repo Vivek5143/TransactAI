@@ -1,0 +1,43 @@
+# Virtual environments
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+
+# Big folders
+data/
+training/
+logs/
+checkpoints/
+models/classifier_ckpts/
+
+# ML model files (HUGE)
+*.pt
+*.bin
+*.safetensors
+*.pkl
+*.ckpt
+
+# Excel / training datasets
+*.xlsx
+*.csv
+
+# Jupyter notebooks
+*.ipynb
+
+# Git
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+
+# Test output
+*.log

@@ -68,6 +68,9 @@ def extract_recipient(text: str) -> str:
     Handles phone numbers, UPI IDs, and merchant names.
     """
     t = text.lower().strip()
+    credit_keywords = ["received", "credited", "deposit", "refunded", "reversed"]
+    if any(word in text for word in credit_keywords):
+        return "You"
 
     # ---------------------------
     # 1. Merchant name extraction
