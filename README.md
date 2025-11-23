@@ -22,7 +22,7 @@ A production-focused transaction classification service that blends deterministi
 
 ## 📁 Project Layout
 ```
-BankTextCategorizer/
+backend/
 ├── api/                 # FastAPI app + schemas
 ├── core/                # Preprocessor, fuzzy rules, DistilBERT classifier
 ├── data/                # Training spreadsheets / CSVs
