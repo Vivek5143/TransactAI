@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">TransactionNotifier</string>
+    <string name="notification_access_required">Notification Access Required</string>
+    <string name="enable_notification_access">Enable Notification Access</string>
+    <string name="notification_access_enabled">Notification Access Enabled</string>
+    <string name="monitoring_active">Monitoring banking notifications</string>
+    <string name="app_description">This app monitors transaction notifications from banking and UPI apps to automatically categorize your expenses using AI.</string>
+</resources>

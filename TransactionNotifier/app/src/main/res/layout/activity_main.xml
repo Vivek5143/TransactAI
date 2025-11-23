@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#f8f9fa">
+
+    <!-- App Title -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="TransactionNotifier"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"
+        android:textColor="#2c3e50" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Monitor UPI transactions automatically"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginBottom="24dp"
+        android:textColor="#7f8c8d" />
+
+    <!-- Status Display -->
+    <TextView
+        android:id="@+id/statusTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:lineSpacingMultiplier="1.3"
+        android:padding="16dp"
+        android:background="#e8f4fd"
+        android:drawablePadding="8dp" />
+
+    <!-- Action Button -->
+    <Button
+        android:id="@+id/enableButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:text="Enable Notification Access"
+        android:textSize="16sp"
+        android:backgroundTint="#3498db"
+        android:textColor="#ffffff" />
+
+    <!-- Debug Section -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Status Information"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:layout_marginBottom="8dp"
+        android:textColor="#2c3e50" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <TextView
+            android:id="@+id/debugTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#2c3e50"
+            android:padding="12dp"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:textColor="#ecf0f1"
+            android:lineSpacingMultiplier="1.2" />
+
+    </ScrollView>
+
+    <!-- Instructions -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="💡 After enabling, send UPI payments via PhonePe, GPay, or WhatsApp to test"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:textColor="#95a5a6" />
+
+</LinearLayout>
