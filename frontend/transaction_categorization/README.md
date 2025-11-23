@@ -1,4 +1,4 @@
-# TransactAI – Full Stack Transaction Intelligence Platform
+# TransactAI – Hybrid Transaction Categorizer 
 
 A comprehensive AI-powered transaction categorization system that automatically detects, categorizes, and visualizes financial transactions across mobile and web platforms.
 
