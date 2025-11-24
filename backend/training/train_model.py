@@ -19,8 +19,10 @@ from core.preprocessor import TransactionPreprocessor
 
 
 SEED = 42
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
-MODEL_DIR = Path(__file__).resolve().parents[1] / "models"
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
+MODEL_DIR = ROOT / "models"
+
 
 DATA_SPECS: List[Dict[str, object]] = [
     {
@@ -106,7 +108,7 @@ def prepare_dataset() -> pd.DataFrame:
 
 def preprocess_texts(df: pd.DataFrame, processor: TransactionPreprocessor) -> pd.DataFrame:
     df = df.copy()
-    df["clean_text"] = processor.clean_batch(df["Description"].tolist(), max_workers=4)
+    df["clean_text"] = processor.clean_batch(df["Description"].tolist())
     return df
 
 

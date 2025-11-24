@@ -161,13 +161,29 @@ def clean_text_for_model(text: str) -> str:
 
 class TransactionPreprocessor:
     """
-    Compatibility class; only retains clean() for backward use.
+    Backward-compatible preprocessor:
+    - clean()           → old method
+    - clean_text()      → new method expected by training code
+    - clean_batch()     → batch processing, supports multithreading
     """
 
+    # single text clean
     def clean(self, text: str) -> str:
         return clean_text_for_model(text)
 
-    def clean_batch(self, texts: List[str]):
+    # alias for compatibility (training expects this)
+    def clean_text(self, text: str) -> str:
+        return clean_text_for_model(text)
+
+    # batch clean with optional multithreading
+    def clean_batch(self, texts: List[str], max_workers: int = 1):
+        if max_workers <= 1:
+            return [clean_text_for_model(t) for t in texts]
+
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            return list(executor.map(clean_text_for_model, texts))
+
         return [clean_text_for_model(t) for t in texts]
 
 

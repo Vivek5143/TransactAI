@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from training.train_model import train_with_feedback
+# from training.train_model import train_with_feedback
 from core.model import TransactionClassifier
 from api.db import get_db
 from api.models import Feedback

@@ -1,0 +1,64 @@
+# =====================================
+# GLOBAL EXCLUSIONS
+# =====================================
+
+# Virtual environments
+venv/
+env/
+**/venv/
+**/env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS/Junk
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# IDE/Editor files
+.vscode/
+.idea/
+
+# DO NOT IGNORE training directory
+!backend/training/
+!training/
+
+# Logs
+*.log
+
+
+# =====================================
+# BACKEND (FASTAPI)
+# =====================================
+
+# Do NOT exclude training/ or model files!
+# Only exclude heavy checkpoints directories
+
+backend/data/
+backend/logs/
+backend/checkpoints/
+
+# Heavy ML checkpoints (safe to ignore)
+backend/models/classifier_ckpts/
+backend/models/checkpoints/
+backend/models/encoder/
+
+# Keep the actual model files like:
+# - classifier_model.pkl
+# - classifier_tfidf.pkl
+# - classifier_encoder.pkl
+# - classifier_metrics.json
+# DO NOT EXCLUDE backend/models/*.pkl (those are needed!)
+
+# Exclude large datasets
+backend/**/*.csv
+backend/**/*.xlsx
+
+# Notebooks from experimentation
+backend/**/*.ipynb

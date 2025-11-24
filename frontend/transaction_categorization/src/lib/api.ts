@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const api = axios.create({

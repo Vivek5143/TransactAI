@@ -1,12 +1,80 @@
-# Node modules
-frontend/**/node_modules/
-frontend/**/.next/
+# ============================
+# PYTHON BACKEND
+# ============================
 
-# Android build
-TransactionNotifier/**/build/
-TransactionNotifier/.gradle/
-
-# General
-*.log
 __pycache__/
-.env
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+build/
+dist/
+
+# virtual env
+venv/
+.venv/
+
+# models temp
+backend/models/*.tmp
+
+# ============================
+# NODE / NEXT.JS FRONTEND
+# ============================
+
+node_modules/
+.next/
+out/
+dist/
+frontend/transaction_categorization/.env*
+frontend/transaction_categorization/**/*.log
+
+# ============================
+# DOCKER
+# ============================
+
+*.log
+docker-data/
+docker-volume/
+*.pid
+
+# compressed files
+*.zip
+*.tar
+*.tar.gz
+
+# ============================
+# IDE / EDITOR
+# ============================
+
+.vscode/
+.idea/
+*.swp
+
+# ============================
+# ANDROID PROJECT
+# ============================
+
+TransactionNotifier/.idea/
+TransactionNotifier/.gradle/
+TransactionNotifier/local.properties
+TransactionNotifier/gradle/
+TransactionNotifier/app/build/
+TransactionNotifier/build/
+TransactionNotifier/.project
+TransactionNotifier/.settings/
+TransactionNotifier/*.iml
+TransactionNotifier/*.apk
+TransactionNotifier/*/debug/
+TransactionNotifier/*/release/
+
+# ignore entire project except README (optional)
+TransactionNotifier/*
+!TransactionNotifier/README.md
+
+# ============================
+# PROJECT SPECIFIC FILES
+# ============================
+
+backend_structure.txt
+backend.zip

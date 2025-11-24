@@ -10,49 +10,61 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, func
 import pandas as pd
 
-# Import improved preprocessors
+# Core modules
 from core.preprocessor import (
     clean_text_for_model,
     extract_amount,
     extract_recipient,
-    TransactionPreprocessor,
+    TransactionPreprocessor
 )
 
-from core.model import TransactionClassifier
+from core.inference import TransactionClassifier  # FIXED: use correct module
+
+# Routers
 from api.models import Transaction, Feedback
 from api.db import get_db
 from api.insights import router as insights_router
 from api.budget import router as budget_router
-from api.scheduler import run_nightly_retrain
+from api.predict import router as predict_router   # Ensure prediction API is enabled
 
-# training integration
+# Training integration
 from training.train_model import train_with_feedback
 
 
-# Load env
+# ============================================================
+# Load environment variables
+# ============================================================
+
 load_dotenv()
-app = FastAPI()
+
+
+# ============================================================
+# FastAPI App
+# ============================================================
+
+app = FastAPI(
+    title="TransactAI API",
+    version="2.0",
+    description="Smart Financial Transaction Categorization API + ML Retraining",
+)
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "http://192.168.1.100:3000",  # Frontend on your network
-        "https://your-frontend.vercel.app",  # Deployed frontend
-        "content://",  # Allow Android content URLs
+        "http://192.168.1.100:3000",
+        "https://your-frontend.vercel.app",
+        "content://",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app = FastAPI(
-    title="TransactAI API",
-    version="2.0",
-    description="Smart Transaction Categorization + Feedback System",
-)
-app.include_router(insights_router, prefix="/insights")
-app.include_router(budget_router, prefix="/budget")
+
+
 # ============================================================
-# PostgreSQL Connection Pool (only for legacy feedback endpoint)
+# PostgreSQL Connection Pool (Legacy)
 # ============================================================
 
 try:
@@ -70,15 +82,20 @@ except Exception as e:
     print("❌ DB Pool Error:", e)
     raise
 
+
 # ============================================================
-# Load ML Model
+# Load ML Model on Startup
 # ============================================================
 
 processor = TransactionPreprocessor()
-# Initialize classifier and attach to app.state for global reload access
-initial_classifier = TransactionClassifier()
-initial_classifier.load(dir_path="models", name="classifier")
-app.state.classifier = initial_classifier
+
+try:
+    classifier = TransactionClassifier()  # loads models inside __init__()
+    app.state.classifier = classifier
+    print("✅ Classifier Loaded into app.state.classifier")
+except Exception as e:
+    print("❌ Failed to load classifier:", e)
+    raise
 
 
 # ============================================================
@@ -98,6 +115,7 @@ CATEGORIES = [
     "Subscription",
     "UPI_Transfer",
 ]
+
 
 # ============================================================
 # Schemas
@@ -124,19 +142,25 @@ class FeedbackModel(BaseModel):
 
 
 # ============================================================
-# Root
+# Root Endpoint
 # ============================================================
 
 @app.get("/")
 def root():
     return {"status": "TransactAI API is running 🚀"}
 
-@app.get("/api/transactions")
-async def get_transactions():
-    # Return stored transactions for frontend
-    return {"transactions": []}
+
 # ============================================================
-# Classify
+# Include Routers
+# ============================================================
+
+app.include_router(insights_router, prefix="/insights")
+app.include_router(budget_router, prefix="/budget")
+app.include_router(predict_router, prefix="/api")    # FIXED: Prediction endpoint enabled
+
+
+# ============================================================
+# Main Classification Endpoint
 # ============================================================
 
 @app.post("/classify")
@@ -147,12 +171,17 @@ def classify(payload: Dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Missing 'message' field")
 
     cleaned = clean_text_for_model(text)
-    cat, conf, meta = app.state.classifier.predict(text)
+
+    # Hybrid model classification
+    result = app.state.classifier.predict(text)
+    cat = result["category"]
+    conf = result.get("ml_prob", 0.0)
 
     amount = extract_amount(text)
     receiver = extract_recipient(text)
     txn_time = datetime.now()
-    
+
+    # Save only if confidence is good
     if conf >= 0.6:
         txn = Transaction(
             raw_text=text,
@@ -176,6 +205,7 @@ def classify(payload: Dict, db: Session = Depends(get_db)):
             "receiver": receiver,
         }
 
+    # Low confidence → Ask user
     return {
         "status": "low_confidence",
         "confidence": float(conf),
@@ -187,6 +217,7 @@ def classify(payload: Dict, db: Session = Depends(get_db)):
         "raw_text": text,
     }
 
+
 # ============================================================
 # Manual Category Selection
 # ============================================================
@@ -197,6 +228,7 @@ def manual_category(request: ManualCategoryRequest, db: Session = Depends(get_db
     if not request.message or not request.category:
         raise HTTPException(status_code=400, detail="Missing required fields")
 
+    # Save transaction + feedback for retraining
     txn = Transaction(
         raw_text=request.message,
         clean_text=request.clean_text,
@@ -230,7 +262,7 @@ def manual_category(request: ManualCategoryRequest, db: Session = Depends(get_db
 
 
 # ============================================================
-# Add Category
+# Add New Category
 # ============================================================
 
 @app.post("/add-category")
@@ -306,9 +338,13 @@ def get_summary(db: Session = Depends(get_db)):
     total_spent = db.query(func.sum(Transaction.amount)).scalar() or 0
     total_transactions = db.query(func.count(Transaction.id)).scalar()
 
-    category_data = db.query(Transaction.predicted_category, func.sum(Transaction.amount)).group_by(Transaction.predicted_category).all()
+    category_data = (
+        db.query(Transaction.predicted_category, func.sum(Transaction.amount))
+        .group_by(Transaction.predicted_category)
+        .all()
+    )
 
-    category_summary = {row[0]: float(row[1]) if row[1] else 0.0 for row in category_data}
+    category_summary = {cat: float(value or 0.0) for cat, value in category_data}
 
     latest = db.query(Transaction).order_by(desc(Transaction.txn_time)).first()
     latest_txn = None
@@ -334,7 +370,7 @@ def get_summary(db: Session = Depends(get_db)):
 
 
 # ============================================================
-# Legacy Psycopg2 Feedback API
+# Legacy Feedback API (Psycopg2)
 # ============================================================
 
 @app.post("/feedback")
@@ -349,7 +385,10 @@ def feedback(data: FeedbackModel):
             VALUES (%s, %s, %s, %s, %s)
         """
 
-        cursor.execute(sql, (data.user_id, data.raw_text, data.predicted, data.corrected, data.confidence))
+        cursor.execute(
+            sql,
+            (data.user_id, data.raw_text, data.predicted, data.corrected, data.confidence),
+        )
 
         conn.commit()
         cursor.close()
@@ -362,50 +401,44 @@ def feedback(data: FeedbackModel):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================
+# Retraining Endpoint
+# ============================================================
+
 @app.post("/retrain-model")
 def retrain_model(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """
-    Trigger model retraining using all rows from `feedback` table.
-    This runs in background and immediately returns a 202 Accepted response.
-    """
 
-    # Read feedback rows from DB
     rows = db.query(Feedback).all()
     if not rows:
         return {"status": "no_feedback", "message": "No feedback rows found; skipping retrain."}
 
-    # Convert to DataFrame in the exact format expected by training
-    records = []
-    for r in rows:
-        records.append({"Description": (r.message or ""), "Category": (r.chosen_category or "")})
-    feedback_df = pd.DataFrame.from_records(records)
+    # Build dataframe
+    records = [{"Description": r.message, "Category": r.chosen_category} for r in rows]
+    feedback_df = pd.DataFrame(records)
 
-    # Background worker: run training with feedback, then reload classifier
     def _worker(df):
         try:
-            print("[RETRAIN] started background retraining with feedback rows:", len(df))
-            res = train_with_feedback(df)
-            print("[RETRAIN] finished training:", res)
-            # reload classifier in-app
-            try:
-                new_clf = TransactionClassifier()
-                new_clf.load(dir_path="models", name="classifier")
-                app.state.classifier = new_clf
-                print("[RETRAIN] model reloaded into app.state.classifier")
-            except Exception as e:
-                print("[RETRAIN] failed to reload classifier into app.state:", e)
-        except Exception as e:
-            print("[RETRAIN] Retraining failed:", e)
+            print("[RETRAIN] started with:", len(df), "records")
+            train_with_feedback(df)
+            print("[RETRAIN] Training complete")
 
-    # schedule background task (non-blocking)
+            # Reload classifier
+            new_clf = TransactionClassifier()
+            app.state.classifier = new_clf
+            print("[RETRAIN] Model reloaded")
+        except Exception as e:
+            print("[RETRAIN] Error:", e)
+
     background_tasks.add_task(_worker, feedback_df)
 
     return {"status": "accepted", "message": "Retraining started in background"}
 
 
 # ============================================================
-# Start scheduled nightly retrain on startup
+# Startup Scheduler
 # ============================================================
+
+from api.scheduler import run_nightly_retrain
 
 @app.on_event("startup")
 def start_scheduler():
@@ -413,3 +446,4 @@ def start_scheduler():
         run_nightly_retrain(app, hour=3, minute=0)
     except Exception as e:
         print("Failed to start nightly scheduler:", e)
+
