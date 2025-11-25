@@ -18,7 +18,7 @@ from core.preprocessor import (
     TransactionPreprocessor
 )
 
-from core.inference import TransactionClassifier  # FIXED: use correct module
+from core.inference import TransactionClassifier
 
 # Routers
 from api.models import Transaction, Feedback
@@ -95,7 +95,10 @@ try:
     print("✅ Classifier Loaded into app.state.classifier")
 except Exception as e:
     print("❌ Failed to load classifier:", e)
-    raise
+    print("⚠️  Continuing without classifier - model may need training")
+    # Create a minimal classifier that will fail gracefully
+    classifier = None
+    app.state.classifier = None
 
 
 # ============================================================
@@ -165,45 +168,90 @@ app.include_router(predict_router, prefix="/api")    # FIXED: Prediction endpoin
 
 @app.post("/classify")
 def classify(payload: Dict, db: Session = Depends(get_db)):
-
+    """
+    Main classification endpoint. Uses consistent preprocessing everywhere.
+    """
     text = payload.get("message")
     if not text:
         raise HTTPException(status_code=400, detail="Missing 'message' field")
 
+    # Use consistent preprocessing
     cleaned = clean_text_for_model(text)
-
-    # Hybrid model classification
-    result = app.state.classifier.predict(text)
-    cat = result["category"]
-    conf = result.get("ml_prob", 0.0)
-
     amount = extract_amount(text)
     receiver = extract_recipient(text)
     txn_time = datetime.now()
 
-    # Save only if confidence is good
-    if conf >= 0.6:
-        txn = Transaction(
-            raw_text=text,
-            clean_text=cleaned,
-            amount=amount,
-            sender_name="You",
-            receiver_name=receiver,
-            txn_time=txn_time,
-            predicted_category=cat,
-            confidence=float(conf),
-            source="mobile",
-        )
-        db.add(txn)
-        db.commit()
-
+    # Check if classifier is available
+    if app.state.classifier is None:
         return {
-            "status": "saved",
-            "category": cat,
-            "confidence": float(conf),
+            "status": "low_confidence",
+            "confidence": 0.0,
+            "options": CATEGORIES,
+            "allow_new_category": True,
             "amount": amount,
             "receiver": receiver,
+            "clean_text": cleaned,
+            "raw_text": text,
+            "message": "Model not loaded - please train the model first",
         }
+
+    # Hybrid model classification
+    try:
+        result = app.state.classifier.predict(text, cleaned)
+        cat = result.get("category", "Others")
+        conf = result.get("confidence", result.get("ml_prob", 0.0))
+    except Exception as e:
+        print(f"❌ Classification error: {e}")
+        traceback.print_exc()
+        # Fallback to low confidence
+        return {
+            "status": "low_confidence",
+            "confidence": 0.0,
+            "options": CATEGORIES,
+            "allow_new_category": True,
+            "amount": amount,
+            "receiver": receiver,
+            "clean_text": cleaned,
+            "raw_text": text,
+        }
+
+    # Save only if confidence is good
+    if conf >= 0.6:
+        try:
+            txn = Transaction(
+                raw_text=text,
+                clean_text=cleaned,
+                amount=amount,
+                sender_name="You",
+                receiver_name=receiver,
+                txn_time=txn_time,
+                predicted_category=cat,
+                confidence=float(conf),
+                source="mobile",
+            )
+            db.add(txn)
+            db.commit()
+
+            return {
+                "status": "saved",
+                "category": cat,
+                "confidence": float(conf),
+                "amount": amount,
+                "receiver": receiver,
+            }
+        except Exception as e:
+            print(f"❌ Database error: {e}")
+            traceback.print_exc()
+            db.rollback()
+            # Return classification even if DB save fails
+            return {
+                "status": "classified",
+                "category": cat,
+                "confidence": float(conf),
+                "amount": amount,
+                "receiver": receiver,
+                "message": "Classification successful but database save failed",
+            }
 
     # Low confidence → Ask user
     return {
@@ -224,17 +272,24 @@ def classify(payload: Dict, db: Session = Depends(get_db)):
 
 @app.post("/manual-category")
 def manual_category(request: ManualCategoryRequest, db: Session = Depends(get_db)):
-
+    """
+    Manual category selection. Uses consistent preprocessing.
+    """
     if not request.message or not request.category:
         raise HTTPException(status_code=400, detail="Missing required fields")
+
+    # Use consistent preprocessing if clean_text not provided
+    cleaned = request.clean_text if request.clean_text else clean_text_for_model(request.message)
+    amount = request.amount if request.amount else extract_amount(request.message)
+    receiver = request.receiver if request.receiver else extract_recipient(request.message)
 
     # Save transaction + feedback for retraining
     txn = Transaction(
         raw_text=request.message,
-        clean_text=request.clean_text,
-        amount=request.amount,
+        clean_text=cleaned,
+        amount=amount,
         sender_name="You",
-        receiver_name=request.receiver,
+        receiver_name=receiver,
         txn_time=datetime.now(),
         predicted_category=request.category,
         confidence=0.0,
@@ -243,9 +298,9 @@ def manual_category(request: ManualCategoryRequest, db: Session = Depends(get_db
 
     feedback_row = Feedback(
         message=request.message,
-        clean_text=request.clean_text,
-        amount=request.amount,
-        receiver_name=request.receiver,
+        clean_text=cleaned,
+        amount=amount,
+        receiver_name=receiver,
         chosen_category=request.category,
     )
 
@@ -256,6 +311,7 @@ def manual_category(request: ManualCategoryRequest, db: Session = Depends(get_db
     except Exception as e:
         db.rollback()
         print("❌ Feedback Insert Error:", e)
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail="Failed to save feedback")
 
     return {"status": "saved_with_feedback", "category": request.category}
@@ -407,13 +463,22 @@ def feedback(data: FeedbackModel):
 
 @app.post("/retrain-model")
 def retrain_model(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-
+    """
+    Retrain the model with feedback data. Runs in background.
+    """
     rows = db.query(Feedback).all()
     if not rows:
         return {"status": "no_feedback", "message": "No feedback rows found; skipping retrain."}
 
-    # Build dataframe
-    records = [{"Description": r.message, "Category": r.chosen_category} for r in rows]
+    # Build dataframe with consistent preprocessing
+    records = []
+    for r in rows:
+        # Use clean_text if available, otherwise preprocess
+        clean = r.clean_text if r.clean_text else clean_text_for_model(r.message)
+        records.append({
+            "Description": r.message,
+            "Category": r.chosen_category
+        })
     feedback_df = pd.DataFrame(records)
 
     def _worker(df):
@@ -425,9 +490,10 @@ def retrain_model(background_tasks: BackgroundTasks, db: Session = Depends(get_d
             # Reload classifier
             new_clf = TransactionClassifier()
             app.state.classifier = new_clf
-            print("[RETRAIN] Model reloaded")
+            print("[RETRAIN] Model reloaded successfully")
         except Exception as e:
             print("[RETRAIN] Error:", e)
+            traceback.print_exc()
 
     background_tasks.add_task(_worker, feedback_df)
 
@@ -438,12 +504,35 @@ def retrain_model(background_tasks: BackgroundTasks, db: Session = Depends(get_d
 # Startup Scheduler
 # ============================================================
 
-from api.scheduler import run_nightly_retrain
+# ============================================================
+# Automatic Table Creation on Startup
+# ============================================================
 
 @app.on_event("startup")
-def start_scheduler():
+def create_tables_on_startup():
+    """Create database tables automatically on startup."""
     try:
-        run_nightly_retrain(app, hour=3, minute=0)
+        from api.db import Base, engine
+        print("Creating database tables...")
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables created/verified successfully")
     except Exception as e:
-        print("Failed to start nightly scheduler:", e)
+        print(f"❌ Failed to create tables: {e}")
+        traceback.print_exc()
+        # Don't raise - allow app to start even if tables exist
+
+# ============================================================
+# Startup Scheduler (Optional)
+# ============================================================
+
+try:
+    from api.scheduler import run_nightly_retrain
+    @app.on_event("startup")
+    def start_scheduler():
+        try:
+            run_nightly_retrain(app, hour=3, minute=0)
+        except Exception as e:
+            print("Failed to start nightly scheduler:", e)
+except ImportError:
+    print("⚠️  Scheduler module not found - skipping nightly retrain setup")
 

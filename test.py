@@ -8,6 +8,7 @@ def send_classify(message: str):
     return res.json()
 
 
+
 def send_manual_category(payload: dict):
     """Call /manual-category"""
     res = requests.post(f"{BASE}/manual-category", json=payload)

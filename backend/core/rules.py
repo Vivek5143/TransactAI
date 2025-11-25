@@ -44,11 +44,11 @@ RULE_CONFIG: Dict[str, Dict] = {
         "confidence_norm": 4.0,
     },
     "Shopping": {
-        "keywords": ["amazon", "flipkart", "myntra", "ajio", "dmart", "bigbasket", "mall", "store"],
-        "patterns": [r"\bqr purchase\b", r"\bpos purchase\b"],
-        "fuzzy": ["amazn", "flip cart"],
-        "fuzzy_weight": 1.0,
-        "confidence_norm": 3.5,
+        "keywords": ["amazon", "flipkart", "myntra", "ajio", "dmart", "bigbasket", "mall", "store", "shopping", "purchase", "buy"],
+        "patterns": [r"\bqr purchase\b", r"\bpos purchase\b", r"\bpaid to (?:amazon|flipkart|myntra)\b", r"\bsent to (?:amazon|flipkart|myntra)\b"],
+        "fuzzy": ["amazn", "flip cart", "amazon", "flipkart"],
+        "fuzzy_weight": 1.2,
+        "confidence_norm": 3.0,
     },
     "Healthcare": {
         "keywords": ["hospital", "clinic", "doctor", "pharmacy", "medplus", "lab test"],

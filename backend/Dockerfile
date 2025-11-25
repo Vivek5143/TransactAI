@@ -19,6 +19,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # now copy the ENTIRE backend directory
 COPY . .
 
+# Ensure data directory exists and copy training dataset
+RUN mkdir -p /app/data
+COPY data/ /app/data/
+
 ENV PYTHONPATH="/app"
 
 EXPOSE 8000

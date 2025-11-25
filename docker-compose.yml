@@ -31,6 +31,9 @@ services:
       DB_PASS: postgres
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/models:/app/models
+      - ./backend/data:/app/data
 
   frontend:
     build:
@@ -46,14 +49,32 @@ services:
   pgadmin:
     image: dpage/pgadmin4
     container_name: transactai_pgadmin
-    restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    restart: always
+
+  create_db:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: transactai_create_db
+    command: python /app/create_tables.py
     depends_on:
       - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: transactai
+      DB_USER: postgres
+      DB_PASS: postgres
+    volumes:
+      - ./create_tables.py:/app/create_tables.py:ro
 
 volumes:
   postgres_data:
+  pgadmin_data:

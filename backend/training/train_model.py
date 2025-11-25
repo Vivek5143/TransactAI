@@ -108,7 +108,8 @@ def prepare_dataset() -> pd.DataFrame:
 
 def preprocess_texts(df: pd.DataFrame, processor: TransactionPreprocessor) -> pd.DataFrame:
     df = df.copy()
-    df["clean_text"] = processor.clean_batch(df["Description"].tolist())
+    # max_workers is optional, can be None or omitted
+    df["clean_text"] = processor.clean_batch(df["Description"].tolist(), max_workers=4)
     return df
 
 
@@ -271,7 +272,8 @@ def train_with_feedback(feedback_df: Optional[pd.DataFrame] = None):
     processor = TransactionPreprocessor()
     print("=== Cleaning text corpus (including feedback) ===")
     preprocess_start = time.time()
-    combined["clean_text"] = processor.clean_batch(combined["Description"].tolist(), max_workers=4)
+    # max_workers is optional, can be None or omitted for sequential processing
+    combined["clean_text"] = processor.clean_batch(combined["Description"].tolist(), max_workers=None)
     preprocess_time = time.time() - preprocess_start
 
     # Create splits (same as train())
