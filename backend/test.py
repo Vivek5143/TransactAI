@@ -24,25 +24,6 @@ def start():
     print("\n==============================")
     print("      TransactAI Tester")
     print("==============================\n")
-    
-    # --- NEW: Auth Menu ---
-    print("1. Login")
-    print("2. Sign Up")
-    print("3. Skip to Classify (Guest Mode)")
-    
-    auth_choice = input("\nEnter option (1/2/3): ").strip()
-    
-    if auth_choice == "1":
-        email = input("Email: ")
-        password = input("Password: ")
-        print("\nLogging in...")
-        print("Auth Response:", send_login(email, password))
-    elif auth_choice == "2":
-        name = input("Full Name: ")
-        email = input("Email: ")
-        password = input("Password: ")
-        print("\nSigning up...")
-        print("Auth Response:", send_signup(name, email, password))
 
     print("\n--- Starting Transaction Tester ---")
 

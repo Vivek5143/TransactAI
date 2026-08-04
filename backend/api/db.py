@@ -25,15 +25,21 @@ DB_PASS = _clean(os.getenv("DB_PASS"))
 print(f"[DB] HOST={repr(DB_HOST)} PORT={repr(DB_PORT)} NAME={repr(DB_NAME)} USER={repr(DB_USER)}")
 
 if not DB_HOST or not DB_USER:
-    raise RuntimeError(
-        f"Missing required DB env vars. HOST={repr(DB_HOST)} USER={repr(DB_USER)}"
-    )
+    print("⚠️ WARNING: Required PostgreSQL environment variables (DB_HOST or DB_USER) are missing.")
+    print(f"⚠️ Current configuration: HOST={repr(DB_HOST)} USER={repr(DB_USER)}")
+    print("⚠️ The database will be unavailable and dependent queries will fail.")
+    # Set fallback placeholders to prevent engine construction errors
+    effective_user = DB_USER or "placeholder_user"
+    effective_host = DB_HOST or "localhost"
+else:
+    effective_user = DB_USER
+    effective_host = DB_HOST
 
 # URL-encode the password so special characters like '@' don't break the URL
 safe_password = urllib.parse.quote_plus(DB_PASS) if DB_PASS else ""
 
 # Build connection string
-DATABASE_URL = f"postgresql://{DB_USER}:{safe_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = f"postgresql://{effective_user}:{safe_password}@{effective_host}:{DB_PORT}/{DB_NAME}"
 
 print(f"[DB] Connecting to {DB_HOST}:{DB_PORT}/{DB_NAME}")
 

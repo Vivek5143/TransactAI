@@ -19,7 +19,6 @@ load_dotenv()
 # ============================================================
 # 2. NOW WE CAN IMPORT LOCAL MODULES
 # ============================================================
-# >>>>>>> main
 # Core modules
 from core.preprocessor import (
     clean_text_for_model,
@@ -27,9 +26,6 @@ from core.preprocessor import (
     extract_recipient,
     TransactionPreprocessor
 )
-# <<<<<<< feature/frontend-fix
-
-# >>>>>>> main
 from core.inference import TransactionClassifier
 
 # Routers
@@ -37,31 +33,14 @@ from api.models import Transaction, Feedback
 from api.db import get_db
 from api.insights import router as insights_router
 from api.budget import router as budget_router
-# <<<<<<< feature/frontend-fix
-from api.predict import router as predict_router   
 from api.predict import router as predict_router   # Ensure prediction API is enabled
-# >>>>>>> main
 
 # Training integration
 from training.train_model import train_with_feedback
 
-# <<<<<<< feature/frontend-fix
 # ============================================================
-# 3. FASTAPI APP INITIALIZATION (Only One!)
+# 3. FASTAPI APP INITIALIZATION
 # ============================================================
-
-# ============================================================
-# Load environment variables
-# ============================================================
-
-load_dotenv()
-
-
-# ============================================================
-# FastAPI App
-# ============================================================
-
-# >>>>>>> main
 app = FastAPI(
     title="TransactAI API",
     version="2.0",
@@ -94,16 +73,9 @@ def health_check():
 
 #----------------------------------------
 
-# <<<<<<< feature/frontend-fix
 # ============================================================
 # PostgreSQL Connection Pool (Legacy)
 # ============================================================
-
-# ============================================================
-# PostgreSQL Connection Pool (Legacy)
-# ============================================================
-
-# >>>>>>> main
 try:
     db_pool = psycopg2.pool.SimpleConnectionPool(
         1,
@@ -116,8 +88,9 @@ try:
     )
     print("✅ PostgreSQL Connection Pool Established")
 except Exception as e:
-    print("❌ DB Pool Error:", e)
-    raise
+    print("⚠️ WARNING: PostgreSQL Connection Pool failed to establish:", e)
+    print("⚠️ The application will continue starting up but database features using the pool will be unavailable.")
+    db_pool = None
 
 
 # ============================================================
@@ -211,9 +184,6 @@ def classify(payload: Dict, db: Session = Depends(get_db)):
     text = payload.get("sms_text") or payload.get("message")
     if not text:
         raise HTTPException(status_code=400, detail="Missing 'sms_text' or 'message' field")
-    text = payload.get("message")
-    if not text:
-        raise HTTPException(status_code=400, detail="Missing 'message' field")
 
     # Use consistent preprocessing
     cleaned = clean_text_for_model(text)
@@ -476,6 +446,11 @@ def get_summary(db: Session = Depends(get_db)):
 
 @app.post("/feedback")
 def feedback(data: FeedbackModel):
+    if db_pool is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Database connection pool is unavailable. Please check your DB configuration."
+        )
     try:
         conn = db_pool.getconn()
         cursor = conn.cursor()
